@@ -81,7 +81,7 @@ namespace mystore.ecommerce.api
             });
 
             services.AddMvc();
-            //services.AddAutoMapper(Assembly.GetExecutingAssembly());
+            
             services.AddScoped<IOrderRepository, OrderRepository>();
             services.AddControllers().AddNewtonsoftJson(cfg =>
             cfg.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
@@ -100,11 +100,6 @@ namespace mystore.ecommerce.api
                 app.UseDeveloperExceptionPage();
 
                 app.UseCors("CorsPolicy");
-            //        builder => builder
-            //.AllowAnyOrigin()
-            //.AllowAnyMethod()
-            //.AllowAnyHeader()
-            //.AllowCredentials());
 
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "mystore.ecommerce.api v1"));

@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using mystore.ecommerce.contracts.managers;
 using mystore.ecommerce.contracts.Repositories;
 using mystore.ecommerce.dbcontext.Models;
+using mystore.ecommerce.entities.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,14 +20,14 @@ namespace mystore.ecommerce.api.Controllers
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class OrdersController : Controller
     {
-        private readonly IOrderRepository _orderRepository;
+        private readonly IOrderManager _orderManager;
         private readonly ILogger<OrdersController> _logger;
         private readonly IMapper _mapper;
         UserManager<StoreUser> _userManager;
 
-        public OrdersController(IOrderRepository orderRepository, ILogger<OrdersController> logger, IMapper mapper, UserManager<StoreUser> userManager)
+        public OrdersController(IOrderManager orderManager, ILogger<OrdersController> logger, IMapper mapper, UserManager<StoreUser> userManager)
         {
-            _orderRepository = orderRepository;
+            _orderManager = orderManager;
             _logger = logger;
             _mapper = mapper;
             _userManager = userManager;
@@ -37,12 +39,12 @@ namespace mystore.ecommerce.api.Controllers
             try
             {
                 var currentUser = await _userManager.FindByNameAsync(User.Identity.Name);
-                var results = _orderRepository.GetAllOrdersByUser(currentUser.Id);
-                
+                var results = _orderManager.GetAllOrdersByUser(currentUser.Id);
+
                 return Ok(results);
-                
+
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
                 return BadRequest("Error Occurred");
@@ -50,14 +52,15 @@ namespace mystore.ecommerce.api.Controllers
         }
 
 
-        [HttpGet("{id}")]
-        public IActionResult Get(string Id)
+        [HttpPost]
+        [Route("api/[controller]/[action]")]
+        public async Task<IActionResult> GetOrder([FromBody] string Id)
         {
             try
             {
-                var order = _orderRepository.GetOrderById(Id);
+                var order = _orderManager.GetOrderById(Id);
 
-                if(order != null)
+                if (order != null)
                 {
                     return Ok(order);
                 }
@@ -72,39 +75,32 @@ namespace mystore.ecommerce.api.Controllers
                 return BadRequest("Error Occurred");
             }
         }
-        
-        //[HttpPost]
-        //public async Task<IActionResult> Post([FromBody] OrderDetail model)
-        //{
-        //    try
-        //    {
-        //        if(ModelState.IsValid)
-        //        {
-        //            //add mapper
-        //            var newOrder = _mapper.Map<OrderDetail, dbcontext.Models.Order>(model);
-        //            //OR
-        //            //var newOrder = new dbcontext.Models.Order()
-        //            //{
-        //            //    Id = model.Id,
-        //            //    OrderDate = model.OrderDate,
-        //            //    OrderNumber = model.OrderNumber
-        //            //};
-        //            var currentUser = await _userManager.FindByNameAsync(User.Identity.Name);
-        //            newOrder.Customer = currentUser.Id;
-        //            var order = _orderRepository.AddOrder(newOrder);
-        //            //map back to model
-        //            return Created($"/api/orders/{order.Id}", _mapper.Map<dbcontext.Models.Order,OrderDetail>(order)); //use model instead Order
-        //        }
-        //        else
-        //        {
-        //            return BadRequest(ModelState);
-        //        }
-        //    }
-        //    catch(Exception ex)
-        //    {
-        //        _logger.LogError(ex.Message);
-        //        return BadRequest("Failed to save");
-        //    }
-        //}
+
+        [HttpPost]
+        public async Task<IActionResult> Post([FromBody] OrderModel model)
+        {
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    var currentUser = await _userManager.FindByNameAsync(User.Identity.Name);
+
+                    var newOrder = _orderManager.SaveOrder(model, currentUser);
+
+                    return Created($"/api/orders/{newOrder.Id}", _mapper.Map<OrderModel>(newOrder));
+
+                }
+                else
+                {
+                    return BadRequest(ModelState);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to save new order: {ex}");
+            }
+
+            return BadRequest("Failed to save new order.");
+        }
     }
 }
